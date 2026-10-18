@@ -102,6 +102,17 @@ export const AdminPage: React.FC = () => {
   const [galleryDate, setGalleryDate] = useState('');
   const [galleryCaption, setGalleryCaption] = useState('');
 
+  // Official Modal State
+  const [officialModalOpen, setOfficialModalOpen] = useState(false);
+  const [editingOfficialId, setEditingOfficialId] = useState<string | null>(null);
+  const [officialName, setOfficialName] = useState('');
+  const [officialRole, setOfficialRole] = useState('');
+  const [officialDepartment, setOfficialDepartment] = useState('Pamong Wilayah');
+  const [officialOrder, setOfficialOrder] = useState<number>(1);
+  const [officialPhone, setOfficialPhone] = useState('');
+  const [officialBio, setOfficialBio] = useState('');
+  const [officialTupoksiText, setOfficialTupoksiText] = useState('');
+
   // Settings State
   const [formWaNumber, setFormWaNumber] = useState(settings.whatsappNumber);
   const [formPhone, setFormPhone] = useState(settings.officialPhone);
@@ -212,6 +223,82 @@ export const AdminPage: React.FC = () => {
     setGalleryModalOpen(false);
     setGalleryTitle('');
     setGalleryCaption('');
+  };
+
+  // Official CRUD Handlers
+  const handleOpenAddOfficial = () => {
+    setEditingOfficialId(null);
+    setOfficialName('');
+    setOfficialRole('');
+    setOfficialDepartment('Pamong Wilayah');
+    setOfficialOrder(officials.length + 1);
+    setOfficialPhone('');
+    setOfficialBio('');
+    setOfficialTupoksiText('');
+    setOfficialModalOpen(true);
+  };
+
+  const handleOpenEditOfficial = (off: Official) => {
+    setEditingOfficialId(off.id);
+    setOfficialName(off.name);
+    setOfficialRole(off.role);
+    setOfficialDepartment(off.department);
+    setOfficialOrder(off.order);
+    setOfficialPhone(off.phone || '');
+    setOfficialBio(off.bio || '');
+    setOfficialTupoksiText(off.tupoksi ? off.tupoksi.join('\n') : '');
+    setOfficialModalOpen(true);
+  };
+
+  const handleSaveOfficial = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!officialName.trim()) {
+      showToast('Nama pengurus tidak boleh kosong', 'error');
+      return;
+    }
+    if (!officialRole.trim()) {
+      showToast('Jabatan pengurus tidak boleh kosong', 'error');
+      return;
+    }
+
+    const tupoksiList = officialTupoksiText
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+
+    const defaultTupoksi = ['Menjalankan fungsi pelayanan dan ketertiban warga pedukuhan.'];
+
+    if (editingOfficialId) {
+      updateOfficial(editingOfficialId, {
+        name: officialName.trim(),
+        role: officialRole.trim(),
+        department: officialDepartment.trim(),
+        order: Number(officialOrder) || 1,
+        phone: officialPhone.trim() || undefined,
+        bio: officialBio.trim(),
+        tupoksi: tupoksiList.length > 0 ? tupoksiList : defaultTupoksi,
+      });
+      showToast(`Data pengurus "${officialName}" berhasil diperbarui`, 'success');
+    } else {
+      addOfficial({
+        name: officialName.trim(),
+        role: officialRole.trim(),
+        department: officialDepartment.trim(),
+        order: Number(officialOrder) || (officials.length + 1),
+        phone: officialPhone.trim() || undefined,
+        bio: officialBio.trim(),
+        tupoksi: tupoksiList.length > 0 ? tupoksiList : defaultTupoksi,
+      });
+      showToast(`Pengurus baru "${officialName}" berhasil ditambahkan`, 'success');
+    }
+    setOfficialModalOpen(false);
+  };
+
+  const handleDeleteOfficial = (id: string, name: string) => {
+    if (window.confirm(`Apakah Anda yakin ingin menghapus pengurus "${name}" dari data wilayah?`)) {
+      deleteOfficial(id);
+      showToast(`Pengurus "${name}" berhasil dihapus`, 'info');
+    }
   };
 
   const handleSaveSettings = (e: React.FormEvent) => {
@@ -694,33 +781,102 @@ export const AdminPage: React.FC = () => {
         {/* Tab 5: Officials Management */}
         {activeTab === 'officials' && (
           <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-2xs space-y-6">
-            <div>
-              <h3 className="text-base font-bold text-slate-900">
-                Daftar Pamong & Pengurus Wilayah
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Pastikan nama dan jabatan pejabat dukuh sesuai SK Kalurahan.
-              </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">
+                  Daftar Pamong & Pengurus Wilayah ({officials.length})
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Kelola susunan pengurus Dukuh Kalimati. Anda dapat menambah, mengedit, dan menghapus pamong.
+                </p>
+              </div>
+              <button
+                onClick={handleOpenAddOfficial}
+                className="px-4 py-2 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-2xs self-start sm:self-auto shrink-0 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Tambah Pengurus Baru</span>
+              </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {officials.map((off) => (
-                <div
-                  key={off.id}
-                  className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2"
+            {officials.length === 0 ? (
+              <div className="p-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-300 space-y-2">
+                <Users className="w-8 h-8 text-slate-400 mx-auto" />
+                <p className="text-xs font-semibold text-slate-600">Belum ada data pengurus.</p>
+                <button
+                  onClick={handleOpenAddOfficial}
+                  className="text-xs font-bold text-emerald-800 hover:underline"
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-emerald-800 uppercase">
-                      {off.department}
-                    </span>
-                    <span className="text-xs text-slate-400">Urutan: #{off.order}</span>
+                  Tambah Pengurus Pertama
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {officials.map((off) => (
+                  <div
+                    key={off.id}
+                    className="p-5 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3 flex flex-col justify-between hover:shadow-xs transition-shadow"
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wide bg-emerald-100/70 px-2 py-0.5 rounded">
+                          {off.department}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-slate-400 mr-2 font-mono">#{off.order}</span>
+                          <button
+                            onClick={() => handleOpenEditOfficial(off)}
+                            className="p-1.5 text-slate-500 hover:text-emerald-800 hover:bg-emerald-50 rounded-md transition-colors"
+                            title="Edit data pengurus"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteOfficial(off.id, off.name)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
+                            title="Hapus pengurus ini"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h4 className="font-bold text-slate-900 text-sm">{off.name}</h4>
+                        <p className="text-xs font-semibold text-emerald-700">{off.role}</p>
+                      </div>
+
+                      <p className="text-xs text-slate-600 leading-relaxed line-clamp-2">
+                        {off.bio || 'Tidak ada keterangan bio.'}
+                      </p>
+
+                      {off.tupoksi && off.tupoksi.length > 0 && (
+                        <div className="pt-2 border-t border-slate-200/60">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                            Tupoksi ({off.tupoksi.length}):
+                          </span>
+                          <ul className="text-[11px] text-slate-600 space-y-0.5 pl-2 list-disc list-inside">
+                            {off.tupoksi.slice(0, 2).map((tp, idx) => (
+                              <li key={idx} className="line-clamp-1">{tp}</li>
+                            ))}
+                            {off.tupoksi.length > 2 && (
+                              <li className="text-slate-400 italic list-none">+{off.tupoksi.length - 2} tupoksi lainnya</li>
+                            )}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+
+                    {off.phone && (
+                      <div className="pt-2 text-xs text-slate-500 font-mono flex items-center gap-1.5 border-t border-slate-200/60">
+                        <span>Kontak:</span>
+                        <span className="text-slate-700">{off.phone}</span>
+                      </div>
+                    )}
                   </div>
-                  <h4 className="font-bold text-slate-900 text-sm">{off.name}</h4>
-                  <p className="text-xs font-semibold text-emerald-700">{off.role}</p>
-                  <p className="text-xs text-slate-600 line-clamp-2">{off.bio}</p>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -1155,6 +1311,151 @@ export const AdminPage: React.FC = () => {
                   className="px-5 py-2 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs"
                 >
                   Simpan Foto
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* Add / Edit Official Modal */}
+      {officialModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-xl w-full p-6 border border-slate-200 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="text-base font-bold text-slate-900">
+                {editingOfficialId ? 'Edit Data Pengurus' : 'Tambah Pengurus Dukuh Baru'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setOfficialModalOpen(false)}
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-md"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveOfficial} className="space-y-3.5 text-xs sm:text-sm">
+              <div>
+                <label className="block font-semibold text-slate-800 mb-1">
+                  Nama Lengkap beserta Gelar <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={officialName}
+                  onChange={(e) => setOfficialName(e.target.value)}
+                  placeholder="Contoh: Bapak Sugiyanto, S.Sos."
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-emerald-800"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-800 mb-1">
+                    Jabatan Resmi <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={officialRole}
+                    onChange={(e) => setOfficialRole(e.target.value)}
+                    placeholder="Contoh: Kepala Dukuh / Bendahara / Ketua RT 01"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-emerald-800"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-800 mb-1">
+                    Lembaga / Seksi
+                  </label>
+                  <select
+                    value={officialDepartment}
+                    onChange={(e) => setOfficialDepartment(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white focus:outline-emerald-800"
+                  >
+                    <option value="Pamong Wilayah">Pamong Wilayah</option>
+                    <option value="Tata Usaha & Pelayanan Warga">Tata Usaha & Pelayanan Warga</option>
+                    <option value="Rukun Warga">Rukun Warga (RW)</option>
+                    <option value="Rukun Tetangga">Rukun Tetangga (RT)</option>
+                    <option value="Pemberdayaan Kesejahteraan Keluarga">Pemberdayaan Kesejahteraan Keluarga (PKK)</option>
+                    <option value="Kepemudaan & Olahraga">Kepemudaan & Olahraga (Karang Taruna)</option>
+                    <option value="Keamanan & Ketertiban">Keamanan & Ketertiban (Linmas)</option>
+                    <option value="Sosial & Keagamaan">Sosial & Keagamaan</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-800 mb-1">
+                    Urutan Tampilan
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={officialOrder}
+                    onChange={(e) => setOfficialOrder(parseInt(e.target.value) || 1)}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 font-mono focus:outline-emerald-800"
+                  />
+                  <span className="text-[10px] text-slate-500 block mt-0.5">
+                    Nomor urut tampilan di halaman profil pemerintahan.
+                  </span>
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-800 mb-1">
+                    Nomor Telepon / WhatsApp (Opsional)
+                  </label>
+                  <input
+                    type="text"
+                    value={officialPhone}
+                    onChange={(e) => setOfficialPhone(e.target.value)}
+                    placeholder="0812-xxxx-xxxx"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 font-mono focus:outline-emerald-800"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-800 mb-1">
+                  Keterangan / Profil Singkat
+                </label>
+                <textarea
+                  rows={2}
+                  value={officialBio}
+                  onChange={(e) => setOfficialBio(e.target.value)}
+                  placeholder="Uraian singkat peran dan pengabdian dalam wilayah pedukuhan..."
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-emerald-800"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-800 mb-1">
+                  Tugas Pokok & Fungsi (Tupoksi)
+                </label>
+                <textarea
+                  rows={4}
+                  value={officialTupoksiText}
+                  onChange={(e) => setOfficialTupoksiText(e.target.value)}
+                  placeholder="Tuliskan setiap tugas pada baris baru:&#10;Contoh:&#10;Memimpin musyawarah warga RT&#10;Mengkoordinir kegiatan ronda malam&#10;Mendata permohonan surat pengantar"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-emerald-800 font-sans"
+                />
+                <span className="text-[10px] text-slate-500 block mt-0.5">
+                  Pisahkan masing-masing poin tugas dengan menekan tombol Enter (baris baru).
+                </span>
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setOfficialModalOpen(false)}
+                  className="px-4 py-2 text-xs text-slate-600 hover:text-slate-900 rounded-lg"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs"
+                >
+                  {editingOfficialId ? 'Simpan Perubahan' : 'Tambahkan Pengurus'}
                 </button>
               </div>
             </form>
